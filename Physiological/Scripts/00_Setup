@@ -1,0 +1,76 @@
+## =========================================================
+## 00_Setup
+## Purpose: Create project library and install/update packages only when needed
+## =========================================================
+
+lib <- Sys.getenv("R_LIBS_USER")
+if (lib == "") {
+  stop("R_LIBS_USER is not set. Make sure config.txt was sourced before running R.")
+}
+
+dir.create(lib, recursive = TRUE, showWarnings = FALSE)
+.libPaths(c(lib, .libPaths()))
+
+repos <- "https://cloud.r-project.org"
+
+required_packages <- c(
+  "tibble",
+  "dplyr",
+  "readr",
+  "ggplot2",
+  "stringr",
+  "fs",
+  "rmarkdown",
+  "knitr",
+  "slider",
+  "lubridate",
+  "tidyr",
+  "data.table",
+  "future",
+  "future.apply"
+)
+
+## Install missing packages
+installed <- rownames(installed.packages(lib.loc = lib))
+missing <- setdiff(required_packages, installed)
+
+if (length(missing) > 0) {
+  message("Installing missing packages: ", paste(missing, collapse = ", "))
+    install.packages(
+      missing,
+      lib = lib,
+      repos = repos,
+      dependencies = TRUE,
+    )
+}
+
+## Update only out-of-date packages among the ones we care about
+old <- old.packages(lib.loc = lib, repos = repos)
+
+if (!is.null(old)) {
+  to_update <- intersect(rownames(old), required_packages)
+
+  if (length(to_update) > 0) {
+    message("Updating out-of-date packages: ", paste(to_update, collapse = ", "))
+    invisible(capture.output(
+      install.packages(
+        to_update,
+        lib = lib,
+        repos = repos,
+        dependencies = TRUE,
+        quiet = TRUE
+      )
+    ))
+  }
+}
+
+if (length(missing) == 0 && (is.null(old) || length(intersect(rownames(old), required_packages)) == 0)) {
+  message("R package library is ready.")
+}
+
+## Optional: print a few versions for debugging
+for (pkg in c("dplyr", "vctrs", "rlang", "data.table", "future", "future.apply")) {
+  if (requireNamespace(pkg, quietly = TRUE)) {
+    message(pkg, ": ", as.character(packageVersion(pkg)))
+  }
+}
